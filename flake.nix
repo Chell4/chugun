@@ -29,11 +29,45 @@
       };
 
       rustToolchain = pkgs.rust-bin.stable.latest.default;
+
+      craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
+
+      src = craneLib.cleanCargoSource (craneLib.path ./.);
+
+      chugun-crate = craneLib.buildPackage {
+        inherit src;
+        
+        strictDeps = true;
+
+        cargoVendorDir = craneLib.vendorMultipleCargoDeps {
+          inherit (craneLib.findCargoFiles src) cargoConfigs;
+          cargoLockList = [
+            ./Cargo.lock
+            "${rustToolchain.passthru.availableComponents.rust-src}/lib/rustlib/src/rust/Cargo.lock"
+          ];
+        };
+
+        cargoExtraArgs = "--target x86_64-unknown-linux-gnu";
+
+        buildInputs = [
+          
+        ];
+      };
     in 
     {
-      devShells = {
-        default = import ./shell.nix { inherit pkgs; };
+      checks = {
+        inherit chugun-crate;
       };
 
+      packages.default = chugun-crate;
+      
+      devShells = {
+        default = craneLib.devShell {
+          checks = self.checks.${system};
+          packages = [
+            
+          ];
+        };
+      };
     });
 }
